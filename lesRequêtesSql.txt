@@ -1,0 +1,141 @@
+
+CREATE TABLE Players (
+Id INT IDENTITY(1,1) PRIMARY KEY,
+Pseudo VARCHAR(50) NOT NULL,
+Email VARCHAR(100) NOT NULL,
+Rank VARCHAR(20) NOT NULL,
+TotalScore INT NOT NULL DEFAULT(0),
+RegistrationDate DATETIME2 NOT NULL DEFAULT(GETDATE()),
+CONSTRAINT UQ_Players_Pseudo UNIQUE (Pseudo),
+CONSTRAINT UQ_Players_Email UNIQUE (Email),
+CONSTRAINT CHK_Players_TotalScore CHECK (TotalScore >= 0),
+CONSTRAINT CHK_Players_Rank CHECK (Rank IN ('Bronze','Silver','Gold','Platinum','Diamond','Master'))
+);
+
+
+CREATE TABLE Teams (
+Id INT IDENTITY(1,1) PRIMARY KEY,
+Name VARCHAR(100) NOT NULL,
+Tag CHAR(3) NOT NULL,
+CaptainId INT NULL,
+CreationDate DATETIME2 NOT NULL DEFAULT(GETDATE()),
+CONSTRAINT UQ_Teams_Name UNIQUE (Name),
+CONSTRAINT UQ_Teams_Tag UNIQUE (Tag),
+CONSTRAINT CHK_Teams_Tag CHECK (Tag LIKE '[A-Z][A-Z][A-Z]')
+);
+
+
+
+CREATE TABLE TeamPlayers (
+TeamId INT NOT NULL,
+PlayerId INT NOT NULL,
+Role INT NOT NULL,
+JoinDate DATETIME2 NOT NULL DEFAULT(GETDATE()),
+CONSTRAINT PK_TeamPlayers PRIMARY KEY (TeamId, PlayerId),
+CONSTRAINT CHK_TeamPlayers_Role CHECK (Role IN (0,1,2)),
+CONSTRAINT FK_TeamPlayers_Teams FOREIGN KEY (TeamId) REFERENCES Teams(Id) ON DELETE CASCADE,
+CONSTRAINT FK_TeamPlayers_Players FOREIGN KEY (PlayerId) REFERENCES Players(Id) ON DELETE CASCADE
+);
+
+
+
+-- Pour fixer des IDs explicites on active IDENTITY_INSERT (facultatif mais pratique pour débuter)
+SET IDENTITY_INSERT Players ON;
+INSERT INTO Players (Id, Pseudo, Email, Rank, TotalScore, RegistrationDate) VALUES
+(1, 'Shadow', 'shadow@example.com', 'Diamond', 1500, GETDATE()),
+(2, 'Rookie', 'rookie@example.com', 'Bronze', 120, GETDATE()),
+(3, 'Ace', 'ace@example.com', 'Platinum', 900, GETDATE()),
+(4, 'Phantom', 'phantom@example.com', 'Gold', 700, GETDATE()),
+(5, 'Nova', 'nova@example.com', 'Master', 2200, GETDATE()),
+(6, 'Blitz', 'blitz@example.com', 'Silver', 350, GETDATE());
+SET IDENTITY_INSERT Players OFF;
+
+
+
+SET IDENTITY_INSERT Teams ON;
+INSERT INTO Teams (Id, Name, Tag, CaptainId, CreationDate) VALUES
+(1, 'Stacktim Legends', 'STL', 5, GETDATE()),
+(2, 'Stacktim Warriors', 'STW', 3, GETDATE()),
+(3, 'Stacktim Rogues', 'STR', 1, GETDATE());
+SET IDENTITY_INSERT Teams OFF;
+
+
+INSERT INTO TeamPlayers (TeamId, PlayerId, Role) VALUES
+(1, 5, 0), -- Nova = Captain (STL)
+(1, 4, 1), -- Phantom
+(1, 6, 2), -- Blitz (sub)
+
+
+(2, 3, 0), -- Ace = Captain (STW)
+(2, 2, 1), -- Rookie
+(2, 1, 2), -- Shadow
+
+
+(3, 1, 0), -- Shadow = Captain (STR)
+(3, 2, 1); -- Rookie
+
+
+
+SELECT * FROM Players;
+SELECT * FROM Teams;
+SELECT * FROM TeamPlayers;
+
+
+
+
+
+
+
+
+SELECT Pseudo, TotalScore
+FROM Players
+ORDER BY TotalScore DESC;
+
+
+
+
+
+
+
+SELECT t.Name AS TeamName, p.Pseudo,
+CASE tp.Role WHEN 0 THEN 'Captain' WHEN 1 THEN 'Member' WHEN 2 THEN 'Substitute' END AS Role
+FROM TeamPlayers tp
+JOIN Teams t ON tp.TeamId = t.Id
+JOIN Players p ON tp.PlayerId = p.Id
+WHERE t.Id = 1;
+
+
+
+
+
+
+SELECT t.Name,
+COUNT(tp.PlayerId) AS PlayerCount,
+AVG(CAST(p.TotalScore AS FLOAT)) AS AvgScore
+FROM Teams t
+LEFT JOIN TeamPlayers tp ON t.Id = tp.TeamId
+LEFT JOIN Players p ON tp.PlayerId = p.Id
+GROUP BY t.Name;
+
+
+
+
+
+
+SELECT p.*
+FROM Players p
+LEFT JOIN TeamPlayers tp ON p.Id = tp.PlayerId
+WHERE tp.PlayerId IS NULL;
+
+
+
+
+
+SELECT Rank, COUNT(*) AS CountByRank
+FROM Players
+GROUP BY Rank;
+
+
+
+
+
